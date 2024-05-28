@@ -3,3 +3,6 @@
 *checkpoint.ipynb
 .mypy_cache*
 .vscode*
+/data/kaggle_dog/train_valid_test_tiny
+/code/chapter
+/code/chapter09_computer-vision/submission.csv
