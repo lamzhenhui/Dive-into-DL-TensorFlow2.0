@@ -2,22 +2,13 @@
 # coding: utf-8
 # generate by : jupyter nbconvert --to  python 9_13_kaggle_dog_oc.ipynb
 
-# # 9.13 实战Kaggle比赛：狗的品种识别（ImageNet Dogs）
-# 
-# 
-# 我们将在本节动手实战Kaggle比赛中的狗的品种识别问题。该比赛的网页地址是 https://www.kaggle.com/c/dog-breed-identification 。
-# 
-# 在这个比赛中，将识别120类不同品种的狗。这个比赛的数据集实际上是著名的ImageNet的子集数据集。和上一节的CIFAR-10数据集中的图像不同，ImageNet数据集中的图像更高更宽，且尺寸不一。
-# 
-# 图9.17展示了该比赛的网页信息。为了便于提交结果，请先在Kaggle网站上注册账号。
-# 
-# ![狗的品种识别比赛的网页信息。比赛数据集可通过点击“Data”标签获取](http://zh.d2l.ai/_images/kaggle-dog.png)
-# 
-# 首先，导入比赛所需的包或模块。
-
-# In[17]:
-
-
+"""# 9.13 实战Kaggle比赛：狗的品种识别（ImageNet Dogs）
+我们将在本节动手实战Kaggle比赛中的狗的品种识别问题。该比赛的网页地址是 https://www.kaggle.com/c/dog-breed-identification 。
+在这个比赛中，将识别120类不同品种的狗。这个比赛的数据集实际上是著名的ImageNet的子集数据集。和上一节的CIFAR-10数据集中的图像不同，ImageNet数据集中的图像更高更宽，且尺寸不一。
+图9.17展示了该比赛的网页信息。为了便于提交结果，请先在Kaggle网站上注册账号。
+![狗的品种识别比赛的网页信息。比赛数据集可通过点击“Data”标签获取](http://zh.d2l.ai/_images/kaggle-dog.png)
+首先，导入比赛所需的包或模块。
+"""
 # Install TensorFlow
 # try:
 #   # %tensorflow_version only exists in Colab.
@@ -36,27 +27,39 @@ import math
 import random
 class  Classifier():
     def __init__(self) -> None:
-        pass
-    def load_data(self, demo=True):
+        self.train_ds= None
+        self.valid_ds= None
+        self.callback= None
+        self.model = None
+        self.train_valid_ds = None
+        self.test_ds = None
+        self.data_dir = '' # 数据集主目录
+        self.idx_label = None # 标签字典
+        self.lr = None
+        self.batch_size = 0 # 批次大小
+
+    def init_data(self, demo=True):
         """
         # ## 9.13.1 获取和整理数据集
-# 
-# 
-# 比赛数据分为训练集和测试集。训练集包含了10,222张图像，测试集包含了10,357张图像。两个数据集中的图像格式都是JPEG。这些图像都含有RGB三个通道（彩色），高和宽的大小不一。训练集中狗的类别共有120种，如拉布拉多、贵宾、腊肠、萨摩耶、哈士奇、吉娃娃和约克夏等。
+# 比赛数据分为训练集和测试集。训练集包含了10,222张图像，测试集包含了10,357张图像。
+两个数据集中的图像格式都是JPEG。这些图像都含有RGB三个通道（彩色），高和宽的大小不一。
+训练集中狗的类别共有120种，如拉布拉多、贵宾、腊肠、萨摩耶、哈士奇、吉娃娃和约克夏等。
 # """
         # 如果使用下载的Kaggle比赛的完整数据集，把demo变量改为False
         import zipfile
-        data_dir = '../../data/kaggle_dog'
+        self.data_dir = '../../data/kaggle_dog'
         if demo:
             zipfiles = ['train_valid_test_tiny.zip']
         else:
             zipfiles = ['train.zip', 'test.zip', 'labels.csv.zip']
         for f in zipfiles:
-            with zipfile.ZipFile(data_dir + '/' + f, 'r') as z:
-                z.extractall(data_dir)
+            with zipfile.ZipFile(self.data_dir + '/' + f, 'r') as z:
+                z.extractall(self.data_dir)
     def  prepare_data(self, demo= True):
-        self.load_data(demo)
-        self.reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, idx_label)
+        # self.reorg_dog_data()
+        self.init_data(demo)
+        # raise Exception
+        self.reorg_train_valid(self.data_dir, train_dir, input_dir, valid_ratio, self.idx_label)
 
         """
         # 因为我们在这里使用了小数据集，所以将批量大小设为1。
@@ -66,14 +69,30 @@ class  Classifier():
         if demo:
             # 注意，此处使用小数据集并将批量大小相应设小。使用Kaggle比赛的完整数据集时可设批量大小
             # 为较大整数
-            input_dir, batch_size = 'train_valid_test_tiny', 1
+            input_dir, self.batch_size = 'train_valid_test_tiny', 1
         else:
             label_file, train_dir, test_dir = 'labels.csv', 'train', 'test'
-            input_dir, batch_size, valid_ratio = 'train_valid_test', 128, 0.1
-            self.reorg_dog_data(data_dir, label_file, train_dir, test_dir, input_dir,
+            input_dir, self.batch_size, valid_ratio = 'train_valid_test', 128, 0.1
+            self.reorg_dog_data(self.data_dir, label_file, train_dir, test_dir, input_dir,
                         valid_ratio)
-        
-        self.transform_train()
+        self.load_data()
+
+    def defind_model(self):
+        """# #### 9.13.4 定义模型
+        """
+        from tensorflow.keras.applications import ResNet50
+        net=ResNet50(
+            input_shape=(224, 224, 3),
+            weights='imagenet',
+            include_top=False
+        )
+        self.model = tf.keras.Sequential([
+            net,
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Dense(len(label_names), activation='softmax',dtype=tf.float32)
+        ])
+        self.model.summary()
+
     
     def reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, idx_label):
         """
@@ -105,7 +124,7 @@ class  Classifier():
                             os.path.join(data_dir, input_dir, 'train', label))
 
 
-    def reorg_dog_data(data_dir, label_file, train_dir, test_dir, input_dir,
+    def reorg_dog_data(self,data_dir, label_file, train_dir, test_dir, input_dir,
                     valid_ratio):
         """
         读取训练数据标签、切分验证集并整理测试集。
@@ -115,8 +134,8 @@ class  Classifier():
             # 跳过文件头行（栏名称）
             lines = f.readlines()[1:]
             tokens = [l.rstrip().split(',') for l in lines]
-            idx_label = dict(((idx, label) for idx, label in tokens))
-        self.reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, idx_label)
+            self.idx_label = dict(((idx, label) for idx, label in tokens))
+        self.reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, self.idx_label)
         # 整理测试集
         d2l.mkdir_if_not_exist([data_dir, input_dir, 'test', 'unknown'])
         for test_file in os.listdir(os.path.join(data_dir, test_dir)):
@@ -124,10 +143,9 @@ class  Classifier():
                         os.path.join(data_dir, input_dir, 'test', 'unknown'))
 
 
-    def transform_train(imgpath,label):
+    def transform_train(self,imgpath,label):
         """
         # #### 9.13.2 图像增广
-    # 
     # 本节比赛的图像尺寸比上一节中的更大。这里列举了更多可能有用的图像增广操作。
     """
         # 随机对图像裁剪出面积为原图像面积0.08~1倍、且高和宽之比在3/4~4/3的图像，再放缩为高和
@@ -151,144 +169,96 @@ class  Classifier():
         return tf.image.convert_image_dtype(feature, tf.float32),label
 
 
-# 测试时，我们只使用确定性的图像预处理操作。
 
-# In[23]:
+    def transform_test(self,imgpath,label):
+        # 测试时，我们只使用确定性的图像预处理操作。
+        feature=tf.io.read_file(imgpath)
+        feature = tf.image.decode_jpeg(feature,channels=3)
+        feature = tf.image.resize(feature, [224, 224])
+        feature = tf.divide(feature, 255.)
+        # feature = tf.image.per_image_standardization(feature)
+        mean = tf.convert_to_tensor([0.485, 0.456, 0.406])
+        std = tf.convert_to_tensor([0.229, 0.224, 0.225])
+        feature = tf.divide(tf.subtract(feature, mean), std)
+        return feature,label
 
+    def load_data(self):
+        """# ## 9.13.3 读取数据集
+        # 获取所有图片path和label"""
+        import pathlib
+        data_root="../../data/kaggle_dog/train_valid_test_tiny"
+        train_data_root = pathlib.Path(data_root+"/train")
+        valid_data_root = pathlib.Path(data_root+"/valid")
+        train_valid_data_root = pathlib.Path(data_root+"/train_valid")
+        test_data_root = pathlib.Path(data_root+"/test")
+        label_names = sorted(item.name for item in train_data_root.glob('*/') if item.is_dir())
+        label_to_index = dict((name, index) for index, name in enumerate(label_names))
 
-def transform_test(imgpath,label):
-    feature=tf.io.read_file(imgpath)
-    feature = tf.image.decode_jpeg(feature,channels=3)
-    feature = tf.image.resize(feature, [224, 224])
-    feature = tf.divide(feature, 255.)
-    # feature = tf.image.per_image_standardization(feature)
-    mean = tf.convert_to_tensor([0.485, 0.456, 0.406])
-    std = tf.convert_to_tensor([0.229, 0.224, 0.225])
-    feature = tf.divide(tf.subtract(feature, mean), std)
-    return feature,label
-
-
-# ## 9.12.3 读取数据集
-# 
-
-# 获取所有图片path和label
-
-# In[24]:
-
-
-import pathlib
-data_root="../../data/kaggle_dog/train_valid_test_tiny"
-train_data_root = pathlib.Path(data_root+"/train")
-valid_data_root = pathlib.Path(data_root+"/valid")
-train_valid_data_root = pathlib.Path(data_root+"/train_valid")
-test_data_root = pathlib.Path(data_root+"/test")
-label_names = sorted(item.name for item in train_data_root.glob('*/') if item.is_dir())
-label_to_index = dict((name, index) for index, name in enumerate(label_names))
-
-train_all_image_paths = [str(path) for path in list(train_data_root.glob('*/*'))]
-valid_all_image_paths = [str(path) for path in list(valid_data_root.glob('*/*'))]
-train_valid_all_image_paths = [str(path) for path in list(train_valid_data_root.glob('*/*'))]
-test_all_image_paths = [str(path) for path in list(test_data_root.glob('*/*'))]
+        train_all_image_paths = [str(path) for path in list(train_data_root.glob('*/*'))]
+        valid_all_image_paths = [str(path) for path in list(valid_data_root.glob('*/*'))]
+        train_valid_all_image_paths = [str(path) for path in list(train_valid_data_root.glob('*/*'))]
+        test_all_image_paths = [str(path) for path in list(test_data_root.glob('*/*'))]
 
 
-train_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in train_all_image_paths]
-valid_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in valid_all_image_paths]
-train_valid_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in train_valid_all_image_paths]
-test_all_image_labels = [-1 for i in range(len(test_all_image_paths))]
-print("First 10 images indices: ", train_valid_all_image_labels[:10])
-print("First 10 labels indices: ", train_valid_all_image_labels[:10])
+        train_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in train_all_image_paths]
+        valid_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in valid_all_image_paths]
+        train_valid_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in train_valid_all_image_paths]
+        test_all_image_labels = [-1 for i in range(len(test_all_image_paths))]
+        print("First 10 images indices: ", train_valid_all_image_labels[:10])
+        print("First 10 labels indices: ", train_valid_all_image_labels[:10])
 
 
-# 构建一个 tf.data.Dataset
+        # 构建一个 tf.data.Dataset
+        # 图像加强
 
-# In[25]:
-
-
-train_ds = tf.data.Dataset.from_tensor_slices((train_all_image_paths, train_all_image_labels)).map(transform_train).shuffle(len(train_all_image_paths)).batch(batch_size)
-valid_ds = tf.data.Dataset.from_tensor_slices((valid_all_image_paths, valid_all_image_labels)).map(transform_train).shuffle(len(valid_all_image_paths)).batch(batch_size)
-train_valid_ds = tf.data.Dataset.from_tensor_slices((train_valid_all_image_paths, train_valid_all_image_labels)).map(transform_train).shuffle(len(train_valid_all_image_paths)).batch(batch_size)
-test_ds = tf.data.Dataset.from_tensor_slices((test_all_image_paths, test_all_image_labels)).map(transform_test).shuffle(len(test_all_image_paths)).batch(batch_size)
+        self.train_ds = tf.data.Dataset.from_tensor_slices((train_all_image_paths, train_all_image_labels)).map(self.transform_train).shuffle(len(train_all_image_paths)).batch(self.batch_size)
+        self.valid_ds = tf.data.Dataset.from_tensor_slices((valid_all_image_paths, valid_all_image_labels)).map(self.transform_train).shuffle(len(valid_all_image_paths)).batch(self.batch_size)
+        train_valid_ds = tf.data.Dataset.from_tensor_slices((train_valid_all_image_paths, train_valid_all_image_labels)).map(self.transform_train).shuffle(len(train_valid_all_image_paths)).batch(self.batch_size)
+        self.test_ds = tf.data.Dataset.from_tensor_slices((test_all_image_paths, test_all_image_labels)).map(self.transform_test).shuffle(len(test_all_image_paths)).batch(self.batch_size)
 
 
-# In[26]:
+    def defind_train_func(self):
+        # #### 9.13.5. 定义训练函数
+        self.lr = 0.1
+        lr_decay = 0.01
+
+        def scheduler(epoch):
+            if epoch < 10:
+                return lr
+            else:
+                return lr * tf.math.exp(lr_decay * (10 - epoch))
+
+        self.callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
+
+        self.model.compile(optimizer=keras.optimizers.SGD(learning_rate=lr, momentum=0.9),
+                loss='sparse_categorical_crossentropy')
+        
+    def train_model(self):
+        """# #### 9.13.6. 训练模型"""
+        self.model.fit(self.train_ds, epochs=1 , validation_data=self.valid_ds,  callbacks=[self.callback])
+
+    
 
 
-train_ds
+        # ### 9.13.7 对测试集分类并在Kaggle提交结果
+        # 得到一组满意的模型设计和超参数后，我们使用全部训练数据集（含验证集）重新训练模型，
+        # 并对测试集分类。注意，我们要用刚训练好的输出网络做预测。
+        self.model.compile(optimizer=keras.optimizers.SGD(learning_rate=self.lr, momentum=0.9),
+                loss='sparse_categorical_crossentropy')
+        self.model.fit(self.train_valid_ds, epochs=1 , callbacks=[self.callback])
 
+    def predict(self):
+        probabilities=self.model.predict(self.test_ds)
+        predictions=np.argmax(probabilities, axis=-1)
+        self.write_ret(predictions)
+    
+    def write_ret(self,predictions):
 
-# #### 9.13.4 定义模型
-
-# In[27]:
-
-
-from tensorflow.keras.applications import ResNet50
-net=ResNet50(
-    input_shape=(224, 224, 3),
-    weights='imagenet',
-    include_top=False
-)
-model = tf.keras.Sequential([
-    net,
-    tf.keras.layers.GlobalAveragePooling2D(),
-    tf.keras.layers.Dense(len(label_names), activation='softmax',dtype=tf.float32)
-])
-model.summary()
-
-
-# #### 9.13.5. 定义训练函数
-
-# In[28]:
-
-
-lr = 0.1
-lr_decay = 0.01
-
-def scheduler(epoch):
-    if epoch < 10:
-        return lr
-    else:
-        return lr * tf.math.exp(lr_decay * (10 - epoch))
-
-callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
-
-model.compile(optimizer=keras.optimizers.SGD(learning_rate=lr, momentum=0.9),
-        loss='sparse_categorical_crossentropy')
-
-
-# #### 9.13.6. 训练模型
-
-# In[29]:
-
-
-model.fit(train_ds, epochs=1 , validation_data=valid_ds,  callbacks=[callback])
-
-
-# ### 9.13.7 对测试集分类并在Kaggle提交结果
-# 得到一组满意的模型设计和超参数后，我们使用全部训练数据集（含验证集）重新训练模型，并对测试集分类。注意，我们要用刚训练好的输出网络做预测。
-
-# In[30]:
-
-
-model.compile(optimizer=keras.optimizers.SGD(learning_rate=lr, momentum=0.9),
-        loss='sparse_categorical_crossentropy')
-model.fit(train_valid_ds, epochs=1 , callbacks=[callback])
-
-
-# In[31]:
-
-
-probabilities=model.predict(test_ds)
-predictions=np.argmax(probabilities, axis=-1)
-
-
-# In[32]:
-
-
-ids = sorted(os.listdir(os.path.join(data_dir, input_dir, 'test/unknown')))
-with open('submission.csv', 'w') as f:
-    f.write('id,' + "preds"+ '\n')
-    for i, output in zip(ids, predictions):
-        f.write(i.split('.')[0] + ',' + str(output) + '\n')
+        ids = sorted(os.listdir(os.path.join(data_dir, input_dir, 'test/unknown')))
+        with open('submission.csv', 'w') as f:
+            f.write('id,' + "preds"+ '\n')
+            for i, output in zip(ids, predictions):
+                f.write(i.split('.')[0] + ',' + str(output) + '\n')
 
 
 # #### 小结
@@ -301,11 +271,18 @@ with open('submission.csv', 'w') as f:
 
 if __name__ == '__main__':
     c = Classifier()
-    # input_dir 
+    # 数据准备相关
+    c.prepare_data()
+    raise Exception
 
-    # train model
-    c.train()
+    # 模型参数相关
+    c.defind_model()
+    c.defined_train_func()
 
-    # predict ret
+    # 训练相关
+    c.train_model()
+
+    # 预测
     c.predict()
-    pass
+
+
