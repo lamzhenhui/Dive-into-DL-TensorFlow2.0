@@ -56,10 +56,7 @@ class  Classifier():
             with zipfile.ZipFile(self.data_dir + '/' + f, 'r') as z:
                 z.extractall(self.data_dir)
     def  prepare_data(self, demo= True):
-        # self.reorg_dog_data()
         self.init_data(demo)
-        # raise Exception
-        self.reorg_train_valid(self.data_dir, train_dir, input_dir, valid_ratio, self.idx_label)
 
         """
         # 因为我们在这里使用了小数据集，所以将批量大小设为1。
@@ -78,7 +75,7 @@ class  Classifier():
         self.load_data()
 
     def defind_model(self):
-        """# #### 9.13.4 定义模型
+        """9.13.4 定义模型
         """
         from tensorflow.keras.applications import ResNet50
         net=ResNet50(
@@ -145,9 +142,9 @@ class  Classifier():
 
     def transform_train(self,imgpath,label):
         """
-        # #### 9.13.2 图像增广
-    # 本节比赛的图像尺寸比上一节中的更大。这里列举了更多可能有用的图像增广操作。
-    """
+        9.13.2 图像增广
+        本节比赛的图像尺寸比上一节中的更大。这里列举了更多可能有用的图像增广操作。
+        """
         # 随机对图像裁剪出面积为原图像面积0.08~1倍、且高和宽之比在3/4~4/3的图像，再放缩为高和
         # 宽均为224像素的新图像
         feature=tf.io.read_file(imgpath)
@@ -183,8 +180,8 @@ class  Classifier():
         return feature,label
 
     def load_data(self):
-        """# ## 9.13.3 读取数据集
-        # 获取所有图片path和label"""
+        """9.13.3 读取数据集
+        获取所有图片path和label"""
         import pathlib
         data_root="../../data/kaggle_dog/train_valid_test_tiny"
         train_data_root = pathlib.Path(data_root+"/train")
@@ -192,7 +189,7 @@ class  Classifier():
         train_valid_data_root = pathlib.Path(data_root+"/train_valid")
         test_data_root = pathlib.Path(data_root+"/test")
         label_names = sorted(item.name for item in train_data_root.glob('*/') if item.is_dir())
-        label_to_index = dict((name, index) for index, name in enumerate(label_names))
+        label_to_index = dict((name, index) for index, name in enumerate(label_names)) # lable to index relationship
 
         train_all_image_paths = [str(path) for path in list(train_data_root.glob('*/*'))]
         valid_all_image_paths = [str(path) for path in list(valid_data_root.glob('*/*'))]
@@ -211,10 +208,14 @@ class  Classifier():
         # 构建一个 tf.data.Dataset
         # 图像加强
 
-        self.train_ds = tf.data.Dataset.from_tensor_slices((train_all_image_paths, train_all_image_labels)).map(self.transform_train).shuffle(len(train_all_image_paths)).batch(self.batch_size)
-        self.valid_ds = tf.data.Dataset.from_tensor_slices((valid_all_image_paths, valid_all_image_labels)).map(self.transform_train).shuffle(len(valid_all_image_paths)).batch(self.batch_size)
-        train_valid_ds = tf.data.Dataset.from_tensor_slices((train_valid_all_image_paths, train_valid_all_image_labels)).map(self.transform_train).shuffle(len(train_valid_all_image_paths)).batch(self.batch_size)
-        self.test_ds = tf.data.Dataset.from_tensor_slices((test_all_image_paths, test_all_image_labels)).map(self.transform_test).shuffle(len(test_all_image_paths)).batch(self.batch_size)
+        self.train_ds = tf.data.Dataset.from_tensor_slices((train_all_image_paths, train_all_image_labels)).\
+            map(self.transform_train).shuffle(len(train_all_image_paths)).batch(self.batch_size)
+        self.valid_ds = tf.data.Dataset.from_tensor_slices((valid_all_image_paths, valid_all_image_labels)).\
+            map(self.transform_train).shuffle(len(valid_all_image_paths)).batch(self.batch_size)
+        train_valid_ds = tf.data.Dataset.from_tensor_slices((train_valid_all_image_paths, train_valid_all_image_labels)).\
+            map(self.transform_train).shuffle(len(train_valid_all_image_paths)).batch(self.batch_size)
+        self.test_ds = tf.data.Dataset.from_tensor_slices((test_all_image_paths, test_all_image_labels)).\
+            map(self.transform_test).shuffle(len(test_all_image_paths)).batch(self.batch_size)
 
 
     def defind_train_func(self):
@@ -273,7 +274,7 @@ if __name__ == '__main__':
     c = Classifier()
     # 数据准备相关
     c.prepare_data()
-    raise Exception
+    # raise Exception
 
     # 模型参数相关
     c.defind_model()
