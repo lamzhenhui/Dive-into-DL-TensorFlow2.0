@@ -37,6 +37,7 @@ class  Classifier():
         self.idx_label = None # 标签字典
         self.lr = None
         self.batch_size = 0 # 批次大小
+        self.label_names  = [] # 标签名
 
     def init_data(self, demo=True):
         """
@@ -86,7 +87,7 @@ class  Classifier():
         self.model = tf.keras.Sequential([
             net,
             tf.keras.layers.GlobalAveragePooling2D(),
-            tf.keras.layers.Dense(len(label_names), activation='softmax',dtype=tf.float32)
+            tf.keras.layers.Dense(len(self.label_names), activation='softmax',dtype=tf.float32)
         ])
         self.model.summary()
 
@@ -188,7 +189,7 @@ class  Classifier():
         valid_data_root = pathlib.Path(data_root+"/valid")
         train_valid_data_root = pathlib.Path(data_root+"/train_valid")
         test_data_root = pathlib.Path(data_root+"/test")
-        label_names = sorted(item.name for item in train_data_root.glob('*/') if item.is_dir())
+        self.label_names = sorted(item.name for item in train_data_root.glob('*/') if item.is_dir())
         label_to_index = dict((name, index) for index, name in enumerate(label_names)) # lable to index relationship
 
         train_all_image_paths = [str(path) for path in list(train_data_root.glob('*/*'))]
@@ -212,7 +213,7 @@ class  Classifier():
             map(self.transform_train).shuffle(len(train_all_image_paths)).batch(self.batch_size)
         self.valid_ds = tf.data.Dataset.from_tensor_slices((valid_all_image_paths, valid_all_image_labels)).\
             map(self.transform_train).shuffle(len(valid_all_image_paths)).batch(self.batch_size)
-        train_valid_ds = tf.data.Dataset.from_tensor_slices((train_valid_all_image_paths, train_valid_all_image_labels)).\
+        self.train_valid_ds = tf.data.Dataset.from_tensor_slices((train_valid_all_image_paths, train_valid_all_image_labels)).\
             map(self.transform_train).shuffle(len(train_valid_all_image_paths)).batch(self.batch_size)
         self.test_ds = tf.data.Dataset.from_tensor_slices((test_all_image_paths, test_all_image_labels)).\
             map(self.transform_test).shuffle(len(test_all_image_paths)).batch(self.batch_size)
