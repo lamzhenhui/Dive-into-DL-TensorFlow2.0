@@ -29,7 +29,7 @@ class  Classifier():
     def __init__(self) -> None:
         self.train_ds= None
         self.valid_ds= None
-        self.callback= None
+        self.callback= 0.01  # 学习率大小
         self.model = None
         self.train_valid_ds = None
         self.test_ds = None
@@ -190,7 +190,7 @@ class  Classifier():
         train_valid_data_root = pathlib.Path(data_root+"/train_valid")
         test_data_root = pathlib.Path(data_root+"/test")
         self.label_names = sorted(item.name for item in train_data_root.glob('*/') if item.is_dir())
-        label_to_index = dict((name, index) for index, name in enumerate(label_names)) # lable to index relationship
+        label_to_index = dict((name, index) for index, name in enumerate(self.label_names)) # lable to index relationship
 
         train_all_image_paths = [str(path) for path in list(train_data_root.glob('*/*'))]
         valid_all_image_paths = [str(path) for path in list(valid_data_root.glob('*/*'))]
@@ -226,13 +226,13 @@ class  Classifier():
 
         def scheduler(epoch):
             if epoch < 10:
-                return lr
+                return self.lr
             else:
-                return lr * tf.math.exp(lr_decay * (10 - epoch))
+                return self.lr * tf.math.exp(lr_decay * (10 - epoch))
 
-        self.callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
+        self.callback = tf.keras.callbacks.LearningRateScheduler(scheduler)  # model.fit() 的回调函数
 
-        self.model.compile(optimizer=keras.optimizers.SGD(learning_rate=lr, momentum=0.9),
+        self.model.compile(optimizer=keras.optimizers.SGD(learning_rate=self.lr, momentum=0.9),
                 loss='sparse_categorical_crossentropy')
         
     def train_model(self):
@@ -279,12 +279,18 @@ if __name__ == '__main__':
 
     # 模型参数相关
     c.defind_model()
-    c.defined_train_func()
+    c.defind_train_func()
+    # raise Exception
 
     # 训练相关
     c.train_model()
 
     # 预测
     c.predict()
+    print('执行完毕')
+"""
+cd code/chapter09_computer-vision
+python 9_13_kaggle_dog_test.py
+"""
 
 
