@@ -275,7 +275,7 @@ if __name__ == '__main__':
     c = Classifier()
     # 数据准备相关
     c.prepare_data()
-    # raise Exception
+    raise Exception
 
     # 模型参数相关
     c.defind_model()
