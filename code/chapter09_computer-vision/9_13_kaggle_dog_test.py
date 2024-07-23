@@ -39,16 +39,18 @@ class  Classifier():
         self.batch_size = 0 # 批次大小
         self.label_names  = [] # 标签名
 
-    def init_data(self, demo=True):
+    def prepare_file(self, demo=True):
         """
-        # ## 9.13.1 获取和整理数据集
-# 比赛数据分为训练集和测试集。训练集包含了10,222张图像，测试集包含了10,357张图像。
-两个数据集中的图像格式都是JPEG。这些图像都含有RGB三个通道（彩色），高和宽的大小不一。
-训练集中狗的类别共有120种，如拉布拉多、贵宾、腊肠、萨摩耶、哈士奇、吉娃娃和约克夏等。
-# """
+        数据集介绍:
+        # 比赛数据分为训练集和测试集。训练集包含了10,222张图像，测试集包含了10,357张图像。
+        两个数据集中的图像格式都是JPEG。这些图像都含有RGB三个通道（彩色），高和宽的大小不一。
+        训练集中狗的类别共有120种
+        数据格式类型:
+        数据来源: 
+        # """
         # 如果使用下载的Kaggle比赛的完整数据集，把demo变量改为False
         import zipfile
-        self.data_dir = '../../data/kaggle_dog'
+        self.data_dir = '../../data/kaggle_dog' # 数据集主目录
         if demo:
             zipfiles = ['train_valid_test_tiny.zip']
         else:
@@ -57,21 +59,20 @@ class  Classifier():
             with zipfile.ZipFile(self.data_dir + '/' + f, 'r') as z:
                 z.extractall(self.data_dir)
     def  prepare_data(self, demo= True):
-        self.init_data(demo)
 
         """
-        # 因为我们在这里使用了小数据集，所以将批量大小设为1。
-        在实际训练和测试时，我们应使用Kaggle比赛的完整数据集并调用`reorg_dog_data`函数来整理数据集。
-        相应地，我们也需要将批量大小`batch_size`设为一个较大的整数，如128。
+
         """
+        self.prepare_file(demo)
         if demo:
-            # 注意，此处使用小数据集并将批量大小相应设小。使用Kaggle比赛的完整数据集时可设批量大小
-            # 为较大整数
+            """注意，此处使用小数据集并将批量大小相应设小。
+            # 使用Kaggle比赛的完整数据集时可设批量大小batch_size:128
+            # 为较大整数"""
             self.input_dir, self.batch_size = 'train_valid_test_tiny', 1
         else:
             label_file, train_dir, test_dir = 'labels.csv', 'train', 'test'
-            input_dir, self.batch_size, valid_ratio = 'train_valid_test', 128, 0.1
-            self.reorg_dog_data(self.data_dir, label_file, train_dir, test_dir, input_dir,
+            self.input_dir, self.batch_size, valid_ratio = 'train_valid_test', 128, 0.1
+            self.reorg_dog_data(self.data_dir, label_file, train_dir, test_dir, self.input_dir,
                         valid_ratio)
         self.load_data()
 
@@ -94,17 +95,19 @@ class  Classifier():
     
     def reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, idx_label):
         """
-        9.13.1.2 整理数据集
-        我们定义下面的`reorg_train_valid`函数来从Kaggle比赛的完整原始训练集中切分出验证集。
-        该函数中的参数`valid_ratio`指验证集中每类狗的样本数与原始训练集中数量最少一类的狗的样本数（66）之比。
+        从完整原始训练集中切分出验证集。
+        该函数中的参数`valid_ratio`指验证集中每类狗的样本数与原始训练集中数量
+        最少一类的狗的样本数（66）之比。
         经过整理后，同一类狗的图像将被放在同一个文件夹下，便于稍后读取。
+        input_dir: train_valid_test(not demo) train_valid_test_tiny (demo)
         """
         # 训练集中数量最少一类的狗的样本数
         min_n_train_per_label = (
             collections.Counter(idx_label.values()).most_common()[:-2:-1][0][1])
         # 验证集中每类狗的样本数
-        n_valid_per_label = math.floor(min_n_train_per_label * valid_ratio)
+        n_valid_per_label = math.floor(min_n_train_per_label * valid_ratio) # 疑问.这个变量是用作什么判断
         label_count = {}
+        #根据指定的验证集路径,生成验证集标签
         for train_file in os.listdir(os.path.join(data_dir, train_dir)): # data_dir,train_dir  = '../../data/kaggle_dog' ;'train'
             idx = train_file.split('.')[0]
             label = idx_label[idx]
@@ -122,8 +125,8 @@ class  Classifier():
                             os.path.join(data_dir, input_dir, 'train', label))
 
 
-    def reorg_dog_data(self,data_dir, label_file, train_dir, test_dir, input_dir,
-                    valid_ratio):
+    def reorg_dog_data(self,data_dir, label_file, train_dir, 
+                       test_dir, input_dir,valid_ratio):
         """
         读取训练数据标签、切分验证集并整理测试集。
         """
@@ -132,8 +135,9 @@ class  Classifier():
             # 跳过文件头行（栏名称）
             lines = f.readlines()[1:]
             tokens = [l.rstrip().split(',') for l in lines]
-            self.idx_label = dict(((idx, label) for idx, label in tokens))
-        self.reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, self.idx_label)
+            self.idx_label = dict(((idx, label) for idx, label in tokens)) # 通过标签数据文件读取标签字典
+        self.reorg_train_valid(data_dir, train_dir,
+                                input_dir, valid_ratio, self.idx_label)
         # 整理测试集
         d2l.mkdir_if_not_exist([data_dir, input_dir, 'test', 'unknown'])
         for test_file in os.listdir(os.path.join(data_dir, test_dir)):
@@ -272,7 +276,8 @@ class  Classifier():
 # 2. 预测的具体步骤是那些
 # 3. 如何通过加入一个新的图片,并进行预测
 
-# 目的:了解
+# 流程梳理:
+数据准备
 """
 
 if __name__ == '__main__':
