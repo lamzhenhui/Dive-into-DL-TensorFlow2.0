@@ -256,26 +256,29 @@ class  Classifier():
     
     def write_ret(self,predictions):
 
-        ids = sorted(os.listdir(os.path.join(data_dir, input_dir, 'test/unknown')))
+        ids = sorted(os.listdir(osss.path.join(data_dir, input_dir, 'test/unknown')))
         with open('submission.csv', 'w') as f:
             f.write('id,' + "preds"+ '\n')
             for i, output in zip(ids, predictions):
                 f.write(i.split('.')[0] + ',' + str(output) + '\n')
 
 
-# #### 小结
+"""### 小结
 # 
-# * 我们可以使用在ImageNet数据集上预训练的模型抽取特征，并仅训练自定义的小规模输出网络，从而以较小的计算和存储开销对ImageNet的子集数据集做分类。
-
+# * 我们可以使用在ImageNet数据集上预训练的模型抽取特征，并仅训练自定义的小规模输出网络，
+从而以较小的计算和存储开销对ImageNet的子集数据集做分类。
 # 1. 32中predictions 的ouput 13 代表什么类别
 # 2. 预测的具体步骤是那些
 # 3. 如何通过加入一个新的图片,并进行预测
+
+# 目的:了解
+"""
 
 if __name__ == '__main__':
     c = Classifier()
     # 数据准备相关
     c.prepare_data()
-    raise Exception
+    # raise Exception
 
     # 模型参数相关
     c.defind_model()
