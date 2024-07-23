@@ -67,7 +67,7 @@ class  Classifier():
         if demo:
             # 注意，此处使用小数据集并将批量大小相应设小。使用Kaggle比赛的完整数据集时可设批量大小
             # 为较大整数
-            input_dir, self.batch_size = 'train_valid_test_tiny', 1
+            self.input_dir, self.batch_size = 'train_valid_test_tiny', 1
         else:
             label_file, train_dir, test_dir = 'labels.csv', 'train', 'test'
             input_dir, self.batch_size, valid_ratio = 'train_valid_test', 128, 0.1
@@ -256,7 +256,8 @@ class  Classifier():
     
     def write_ret(self,predictions):
 
-        ids = sorted(os.listdir(osss.path.join(data_dir, input_dir, 'test/unknown')))
+
+        ids = sorted(os.listdir(os.path.join(self.data_dir, self.input_dir, 'test/unknown')))
         with open('submission.csv', 'w') as f:
             f.write('id,' + "preds"+ '\n')
             for i, output in zip(ids, predictions):
