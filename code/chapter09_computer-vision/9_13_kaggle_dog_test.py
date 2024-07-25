@@ -61,7 +61,8 @@ class  Classifier():
     def  prepare_data(self, demo= True):
 
         """
-
+        准备验测训练数据的数据
+        准备数据标签对应关系
         """
         self.prepare_file(demo)
         if demo:
@@ -72,12 +73,14 @@ class  Classifier():
         else:
             label_file, train_dir, test_dir = 'labels.csv', 'train', 'test'
             self.input_dir, self.batch_size, valid_ratio = 'train_valid_test', 128, 0.1
+            # 整理数据文件
             self.reorg_dog_data(self.data_dir, label_file, train_dir, test_dir, self.input_dir,
                         valid_ratio)
-        self.load_data()
+        self.load_data_lable() # 缺少参赛正式的处理逻辑
 
     def defind_model(self):
         """9.13.4 定义模型
+        使用残差网络
         """
         from tensorflow.keras.applications import ResNet50
         net=ResNet50(
@@ -95,19 +98,18 @@ class  Classifier():
     
     def reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, idx_label):
         """
-        从完整原始训练集中切分出验证集。
-        该函数中的参数`valid_ratio`指验证集中每类狗的样本数与原始训练集中数量
-        最少一类的狗的样本数（66）之比。
+        从完整原始训练集中切分出验证集,以及生成相应的训练集
+        `valid_ratio`: 指验证集中每类狗的样本数与原始训练集中数量最少一类的狗的样本数（66）之比。
         经过整理后，同一类狗的图像将被放在同一个文件夹下，便于稍后读取。
         input_dir: train_valid_test(not demo) train_valid_test_tiny (demo)
         """
         # 训练集中数量最少一类的狗的样本数
         min_n_train_per_label = (
             collections.Counter(idx_label.values()).most_common()[:-2:-1][0][1])
-        # 验证集中每类狗的样本数
-        n_valid_per_label = math.floor(min_n_train_per_label * valid_ratio) # 疑问.这个变量是用作什么判断
+        # 计算验证集中每类狗的样本数
+        n_valid_per_label = math.floor(min_n_train_per_label * valid_ratio)
         label_count = {}
-        #根据指定的验证集路径,生成验证集标签
+        #根据指定的验证集路径,生成验证集标签以及复制生成验证集数据
         for train_file in os.listdir(os.path.join(data_dir, train_dir)): # data_dir,train_dir  = '../../data/kaggle_dog' ;'train'
             idx = train_file.split('.')[0]
             label = idx_label[idx]
@@ -115,10 +117,11 @@ class  Classifier():
             shutil.copy(os.path.join(data_dir, train_dir, train_file),
                         os.path.join(data_dir, input_dir, 'train_valid', label))
             if label not in label_count or label_count[label] < n_valid_per_label:
+                # 验证集中每类狗的样本数, 复制生成验证集数据
                 d2l.mkdir_if_not_exist([data_dir, input_dir, 'valid', label])
                 shutil.copy(os.path.join(data_dir, train_dir, train_file),
                             os.path.join(data_dir, input_dir, 'valid', label))
-                label_count[label] = label_count.get(label, 0) + 1
+                label_count[label] = label_count.get(label, 0) + 1 # lable_count 用于计数用
             else:
                 d2l.mkdir_if_not_exist([data_dir, input_dir, 'train', label])
                 shutil.copy(os.path.join(data_dir, train_dir, train_file),
@@ -136,9 +139,10 @@ class  Classifier():
             lines = f.readlines()[1:]
             tokens = [l.rstrip().split(',') for l in lines]
             self.idx_label = dict(((idx, label) for idx, label in tokens)) # 通过标签数据文件读取标签字典
+        #整理验证集和训练集文件
         self.reorg_train_valid(data_dir, train_dir,
                                 input_dir, valid_ratio, self.idx_label)
-        # 整理测试集
+        # 整理测试集文件
         d2l.mkdir_if_not_exist([data_dir, input_dir, 'test', 'unknown'])
         for test_file in os.listdir(os.path.join(data_dir, test_dir)):
             shutil.copy(os.path.join(data_dir, test_dir, test_file),
@@ -184,28 +188,32 @@ class  Classifier():
         feature = tf.divide(tf.subtract(feature, mean), std)
         return feature,label
 
-    def load_data(self):
-        """9.13.3 读取数据集
+    def load_data_lable(self):
+        """
         获取所有图片path和label"""
         import pathlib
-        data_root="../../data/kaggle_dog/train_valid_test_tiny"
+        # 拼装目录
+        data_root="../../data/kaggle_dog/train_valid_test_tiny" # 不是测试用的目录吗:疑问
         train_data_root = pathlib.Path(data_root+"/train")
         valid_data_root = pathlib.Path(data_root+"/valid")
         train_valid_data_root = pathlib.Path(data_root+"/train_valid")
         test_data_root = pathlib.Path(data_root+"/test")
         self.label_names = sorted(item.name for item in train_data_root.glob('*/') if item.is_dir())
+        # 建立标签索引关系
         label_to_index = dict((name, index) for index, name in enumerate(self.label_names)) # lable to index relationship
 
+        # 记录图片地址
         train_all_image_paths = [str(path) for path in list(train_data_root.glob('*/*'))]
         valid_all_image_paths = [str(path) for path in list(valid_data_root.glob('*/*'))]
         train_valid_all_image_paths = [str(path) for path in list(train_valid_data_root.glob('*/*'))]
         test_all_image_paths = [str(path) for path in list(test_data_root.glob('*/*'))]
 
-
+        # 记录图片目录对应的标签索引 疑问: 什么作用
         train_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in train_all_image_paths]
         valid_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in valid_all_image_paths]
         train_valid_all_image_labels = [label_to_index[pathlib.Path(path).parent.name] for path in train_valid_all_image_paths]
-        test_all_image_labels = [-1 for i in range(len(test_all_image_paths))]
+        # 
+        test_all_image_labels = [-1 for i in range(len(test_all_image_paths))] # 疑问: -1?
         print("First 10 images indices: ", train_valid_all_image_labels[:10])
         print("First 10 labels indices: ", train_valid_all_image_labels[:10])
 
