@@ -88,12 +88,21 @@ class  Classifier():
             weights='imagenet',
             include_top=False
         )
+        """
+        Output Shape: (None, 7, 7, 2048)
+        (None, 7, 7, 2048) 表示该层的输出形状。
+        None 表示批处理大小可以是任意的，即每次可以输入任意数量的样本。
+        7 和 7 分别代表输出特征图的高度和宽度。
+        2048 是输出通道数，即特征图的深度。
+        """
         self.model = tf.keras.Sequential([
             net,
             tf.keras.layers.GlobalAveragePooling2D(),
             tf.keras.layers.Dense(len(self.label_names), activation='softmax',dtype=tf.float32)
         ])
+        print("summary 打印开始")
         self.model.summary()
+        raise Exception('打印')
 
     
     def reorg_train_valid(data_dir, train_dir, input_dir, valid_ratio, idx_label):
@@ -236,7 +245,7 @@ class  Classifier():
         self.lr = 0.1
         lr_decay = 0.01
 
-        def scheduler(epoch):
+        def scheduler(epoch):# 学习率的调整策略
             if epoch < 10:
                 return self.lr
             else:
@@ -280,9 +289,15 @@ class  Classifier():
 # 
 # * 我们可以使用在ImageNet数据集上预训练的模型抽取特征，并仅训练自定义的小规模输出网络，
 从而以较小的计算和存储开销对ImageNet的子集数据集做分类。
-# 1. 32中predictions 的ouput 13 代表什么类别
-# 2. 预测的具体步骤是那些
-# 3. 如何通过加入一个新的图片,并进行预测
+
+疑问:
+2. 预测的具体步骤是那些
+3. 如何通过加入一个新的图片,并进行预测
+4. 学习率的调整策略 为什么需要callback返回给model.fit()
+5. 理解残差层的设计
+
+6. model.compile 在模型训练之前, 做的是什么操作
+7. model train 主要的流程
 
 # 流程梳理:
 数据准备
